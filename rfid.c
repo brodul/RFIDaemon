@@ -25,7 +25,7 @@ http://www.easysw.com/~mike/serial/
 #include <fcntl.h>   /* File control definitions */
 #include <errno.h>   /* Error number definitions */
 #include <termios.h> /* POSIX terminal control definitions */
-#include <math.h>
+#include <math.h>    /*The math lib*/
 
 /*
  * 'open_port()' - Open serial port 1.
@@ -37,11 +37,11 @@ int open_port(void)
 {
     int fd;                                   /* File descriptor for the port */
 
-    fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY);
+    fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY); /*Temporaly change to USB0*/
 
     if (fd == -1)
     {                                              /* Could not open the port */
-        fprintf(stderr, "open_port: Unable to open /dev/ttyS1 - %s\n",
+        fprintf(stderr, "open_port: Unable to open /dev/ttyUSB0 - %s\n",
                 strerror(errno));
     }
 
@@ -77,25 +77,23 @@ void main()
     /* Set the new options for the port */
     tcsetattr(mainfd, TCSANOW, &options);
 
-    int r=-1;
-    int counter=0;
-    int m=0;
-    unsigned short int alfa;
-    unsigned short int beta;
-    unsigned short int tempsum;
-    unsigned long int result;
+    int r=-1; /*The read object*/
+    int counter=0; /*Byte count for reading */
+    unsigned short int alfa; /*Temp var for calculating checksum*/
+    unsigned short int beta; /*Temp var for calculating checksum*/
+    unsigned short int tempsum; /*Temp var for calculating checksum*/
+    unsigned long int result; /*Printed ID on RFID tag*/
 
     while (1)
     {
     result = 0;
-
+        /*Loop reading 14 bytes*/
         while (1)
         {
             r = read(mainfd, &chout[counter], 1);  /* Read character from ABU */
 
-            if (r > 0)
+            if (r > 0) /*If there is no error*/
             {
-                /*printf("\nr = %d\n",r);*/
                 counter++;
             }
 
@@ -105,19 +103,19 @@ void main()
         }
 
         counter = 0;
-        m = 0;
+
+        /*Debug*/
         for(i=3;i<11;i++)
         {
-            /*value = (value | chout[i]) << 8;*/
             printf("%d\n", chout[i]);
-            /*printf("%x\n", value);*/
         }
 
-        /*printf("\n%llu\n", value);*/
 
 
         if (chout[0] == 0x02)
         {
+            /*Dirty*/
+            /*Checksum calculation*/
             ((char *) (&alfa))[0] = chout[1];
             ((char *) (&alfa))[1] = chout[2];
             ((char *) (&beta))[0] = chout[3];
@@ -132,21 +130,21 @@ void main()
             ((char *) (&alfa))[0] = chout[9];
             ((char *) (&alfa))[1] = chout[10];
             tempsum = alfa ^ tempsum;
+            /*Check sum is in tempsum*/
 
             if ( chout[11] == ((char *) (&tempsum))[0] && chout[12] == ("%c\n",((char *) (&tempsum))[1]))
             {
                 printf("\nChecksum OK\n");
                 for(i=3;i<11;i++)
                 {
-                    /*value = (value | chout[i]) << 8;*/
+                    /*Translation from ASCII to hex*/
                     if (47 < chout[i] && chout[i] < 58)
                         chout[i] = chout[i] - 48;
                     if (64 < chout[i] && chout[i] < 71)
                         chout[i] = chout[i] - 55;
+                    /*Dirty*/
                     result += pow(16,10-i) * chout[i];
 
-
-                    /*printf("%x\n", value);*/
                 }
                 printf("%lu\n", result);
             }
