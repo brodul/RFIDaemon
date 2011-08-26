@@ -148,8 +148,11 @@ void main()
                 }
                 printf("%lu\n", result);
             }
+            else printf("Checksum BAD :(");
+
             printf("\n-----\n");
         }
+        else printf("Start byte is not 0x02");
 
 
 
