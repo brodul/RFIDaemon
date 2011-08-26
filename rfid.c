@@ -48,10 +48,36 @@ int open_port(void)
     return (fd);
 }
 
+int checksum_calculation(unsigned char * ch);
+int checksum_calculation(unsigned char * ch)
+{
+    unsigned short int i;
+    short int state;
+    unsigned short int alfa; /*Temp var for calculating checksum*/
+    unsigned short int tempsum; /*Temp var for calculating checksum*/
+
+    /*Checksum calculation*/
+    ((char *) (&tempsum))[0] = ch[1];
+    ((char *) (&tempsum))[1] = ch[2];
+    for(i=1;i<5;i++)
+    {
+        ((char *) (&alfa))[0] = ch[i * 2];
+        ((char *) (&alfa))[1] = ch[i * 2 + 1];
+        tempsum = alfa ^ tempsum;
+    }
+    if ( ch[11] == ((char *) (&tempsum))[0] && ch[12] == (((char *) (&tempsum))[1]) )
+    state = 1;
+    else
+    state = -1;
+
+    /*Check sum is in tempsum*/
+}
+
 void main()
 {
     int mainfd=0;                                            /* File descriptor */
-    int i;
+    int short i;
+    int short state;
     unsigned char chout[13];
     struct termios options;
 
@@ -86,7 +112,7 @@ void main()
 
     while (1)
     {
-    result = 0;
+        result = 0;
         /*Loop reading 14 bytes*/
         while (1)
         {
@@ -114,25 +140,9 @@ void main()
 
         if (chout[0] == 0x02)
         {
-            /*Dirty*/
-            /*Checksum calculation*/
-            ((char *) (&alfa))[0] = chout[1];
-            ((char *) (&alfa))[1] = chout[2];
-            ((char *) (&beta))[0] = chout[3];
-            ((char *) (&beta))[1] = chout[4];
-            tempsum = alfa ^ beta;
-            ((char *) (&alfa))[0] = chout[5];
-            ((char *) (&alfa))[1] = chout[6];
-            tempsum = alfa ^ tempsum;
-            ((char *) (&alfa))[0] = chout[7];
-            ((char *) (&alfa))[1] = chout[8];
-            tempsum = alfa ^ tempsum;
-            ((char *) (&alfa))[0] = chout[9];
-            ((char *) (&alfa))[1] = chout[10];
-            tempsum = alfa ^ tempsum;
-            /*Check sum is in tempsum*/
 
-            if ( chout[11] == ((char *) (&tempsum))[0] && chout[12] == ("%c\n",((char *) (&tempsum))[1]))
+            state = checksum_calculation(chout);
+            if (state)
             {
                 printf("\nChecksum OK\n");
                 for(i=3;i<11;i++)
