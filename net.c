@@ -26,9 +26,9 @@ int main(void)
 
     strcpy (json,"{ ");
     strcat (json,"\"mac\" : ");
-    strcat (json,"\"lol\"");
+    strcat (json,"\"00:22:69:67:e8:dd\"");
     strcat (json,", \"rfid\" : ");
-    strcat (json,"\"lol\"");
+    strcat (json,"\"6100800\"");
     strcat (json,"}");
 
 
