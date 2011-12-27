@@ -29,34 +29,52 @@ http://www.easysw.com/~mike/serial/
 #include <stdlib.h>
 #include <curl/curl.h> /* The network library */
 
+#define PORT 8000
+#define SERVER_URL "localhost/listener.php"
 
+#define ETH "eth0"
+#define MAC_LOC "/sys/class/net/eth0/address"
+#define DEVICE "/dev/ttyUSB0"
+
+#define DEBUG 0
 
 
 int send_json(unsigned int result)
 {
+	// curllib initialization stuff
 	CURL *curl;
 	CURLcode res;
 	struct curl_slist *headers=NULL;
 	headers = curl_slist_append(headers, "Content-Type: application/json");
+	// json message
 	char json[128];
 
-	// Result in string
+	// result (the number of the card) in string
 	char sresult[30];
-	// Mac in string
+	// mac in string
 	char smac[30];
 	int f;
 	int status;
 
+	// read the mac from the file MAC_LOC
+#ifdef DEBUG
 	sprintf(sresult,"%d",result);
+#endif
+	f = open( MAC_LOC , O_RDONLY );
 
-	f = open( "/sys/class/net/eth0/address", O_RDONLY );
+#ifdef DEBUG
 	printf("%d\n", f);
+#endif
 	status = read(f, smac, 18);
+#ifdef DEBUG
 	printf("%d\n", status);
+#endif
 	close(f);
 
+	// set the last char 0
 	smac[17] = 0;
 
+	// initialize the curl lib
 	curl = curl_easy_init();
 	if(curl) {
 		/* First set the URL that is about to receive our POST. This URL can
@@ -66,12 +84,14 @@ int send_json(unsigned int result)
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L );
 		/*curl_easy_setopt(curl, CURLOPT_URL, "https://openvz.brodul.org");*/
-		curl_easy_setopt(curl, CURLOPT_URL, "localhost/listener.php");
+		// TODO: add debug
+		curl_easy_setopt(curl, CURLOPT_URL, SERVER_URL);
 		/*curl_easy_setopt(curl, CURLOPT_URL, "localhost");*/
 		/*curl_easy_setopt(curl, CURLOPT_URL, "http://www.postbin.org/qpss4f");*/
-		curl_easy_setopt(curl, CURLOPT_PORT, 8000 );
+		curl_easy_setopt(curl, CURLOPT_PORT, PORT );
 		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
+		/* Generate a JSON message */
 		strcpy (json,"{ ");
 		strcat (json,"\"mac\" : \"");
 		strcat (json, smac);
@@ -86,7 +106,10 @@ int send_json(unsigned int result)
 
 		/* Perform the request, res will get the return code */
 		res = curl_easy_perform(curl);
+
+#ifdef DEBUG
 		printf("%d", res);
+#endif
 
 		/* always cleanup */
 		curl_easy_cleanup(curl);
@@ -98,7 +121,7 @@ int open_port(void)
 {
 	int fd;                                   /* File descriptor for the port */
 
-	fd = open("/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NDELAY); /*Temporaly change to USB0*/
+	fd = open(DEVICE, O_RDWR | O_NOCTTY | O_NDELAY); /*Temporaly change to USB0*/
 
 	if (fd == -1) {                                              /* Could not open the port */
 		fprintf(stderr, "open_port: Unable to open /dev/ttyUSB0 - %s\n",
@@ -121,14 +144,17 @@ int checksum_calculation(unsigned char * ch)
 	unsigned char tmp=0;
 	for (i=0;i<5;i++)
 	{
+		// XOR to get checksum
 		tmp ^= ch[i];
 	}
 
 	tempsum = tmp;
 
 	if (ch[5] == tmp)
+		/*Checksum is OK*/
 		state_ch = 1;
 	else
+		/*Checksum is BAD*/
 		state_ch = 0;
 
 #ifdef DEBUG
@@ -140,7 +166,7 @@ int checksum_calculation(unsigned char * ch)
 }
 
 
-void main()
+int main()
 {
 	int mainfd=0;                                            /* File descriptor */
 	int short i;
@@ -149,7 +175,7 @@ void main()
 	unsigned char hextable[7];
 	chout[14] = 0 ;
 	struct termios options;
-
+/*Serial reading */
 	mainfd = open_port();
 
 	fcntl(mainfd, F_SETFL, FNDELAY);                  /* Configure port reading */
@@ -174,9 +200,6 @@ void main()
 
 	int r=-1; /*The read object*/
 	int counter=0; /*Byte count for reading */
-	/*unsigned short int alfa; [>Temp var for calculating checksum<]*/
-	/*unsigned short int beta; [>Temp var for calculating checksum<]*/
-	/*unsigned short int tempsum; [>Temp var for calculating checksum<]*/
 	unsigned int result; /*Printed ID on RFID tag*/
 	unsigned char tmpa=0;
 	unsigned char tmpb=0;
@@ -187,6 +210,7 @@ void main()
 		result = 0;
 
 		/*Loop reading 14 bytes*/
+		/*Write to the chout array*/
 		while (1)
 		{
 			r = read(mainfd, &chout[counter], 1);  /* Read character from ABU */
@@ -222,7 +246,7 @@ void main()
 		}
 
 		counter = 0;
-
+/*The first bit must be 0x02 in HEX*/
 		if (chout[0] == 0x02)
 		{
 
@@ -241,6 +265,7 @@ void main()
 				printf("\n");
 #endif
 
+/*TODO XXX*/
 				result = ((  hextable[1] << 24) | ((  hextable[2] << 16) ) | ((  hextable[3]  << 8) ) | (hextable[4] ));
 
 				printf("%i\n", result);
@@ -254,5 +279,6 @@ void main()
 
 	}
 	close(mainfd);
+	return 0;
 }
 
